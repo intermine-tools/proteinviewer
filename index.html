@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Protein Features Viewer</title>
+    <script src="node_modules/biojs-vis-proteinfeaturesviewer/build/featuresviewer.min.js" charset="utf-8"></script>
+    <link rel="stylesheet" href="node_modules/biojs-vis-proteinfeaturesviewer/build/main.css" media="screen" charset="utf-8">
+  </head>
+  <body>
+    <div id="imFeaturesViewer"></div>
+    <script>
+      var biojs_vis_proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer'),
+      el = document.getElementById('imFeaturesViewer'),
+      instance = new biojs_vis_proteinFeaturesViewer({el: el, uniprotacc : 'P37231'});
+
+    </script>
+  </body>
+</html>
