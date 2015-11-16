@@ -1,3 +1,18 @@
+var primaryAccessionQuery = {
+  "from": "Protein",
+  "select": [ "primaryAccession"],
+  "where": [
+    {
+      "path": "id",
+      "op": "=",
+      "code": "A"
+    }
+  ]
+},
+service;
+
+
+
 chan = Channel.build({
   window: window.parent,
   origin: "*",
@@ -9,12 +24,24 @@ chan.bind('configure', function (trans, params) {
 });
 
 chan.bind('init', function (trans, params) {
-  try {
-    var biojs_vis_proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer'),
-    el = document.getElementById('imFeaturesViewer'),
-    instance = new biojs_vis_proteinFeaturesViewer({el: el, uniprotacc : 'P37231'});
-  } catch (e) {
-    trans.error('InitialisationError', String(e));
+  service = new imjs.Service({root:params.service.root});
+  getProteinPrimaryAccession(params.id);
+
+  /**
+   * Steps likes to share IDs, but the protein viewer likes primary accessions.
+   * So, let's getthe accession for a given protein.
+   */
+  function getProteinPrimaryAccession(id) {
+    primaryAccessionQuery.where[0].value = id;
+      service.records(primaryAccessionQuery).then( function(results) {
+      try {
+        var biojs_vis_proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer'),
+        el = document.getElementById('imFeaturesViewer'),
+        instance = new biojs_vis_proteinFeaturesViewer({el: el, uniprotacc : results[0].primaryAccession});
+      } catch (e) {
+        trans.error('InitialisationError', String(e));
+      }
+    });
   }
 
 
