@@ -107,19 +107,27 @@ chan.bind('init', function(trans, params) {
    * @param  {string} type        "Gene" or "Protein" only.
    */
   function init(id, type) {
+    var accessions;
     //build query
     primaryAccessionQuery[type].where[0].value = id;
     try {
       service.records(primaryAccessionQuery[type]).then(function(results) {
         if (results.length) {
-          //show results
-          ui.displayViewer(getAccessions(results[0]));
+          accessions = getAccessions(results[0]);
+          if (accessions.length) {
+            //show results
+              ui.displayViewer(accessions);
+          } else {
+            //the double sorry is a bit messy.
+            ui.noResults(type);
+          }
         } else {
           //show sorry because there are no results.
           ui.noResults(type);
         }
       });
     } catch (e) {
+      console.error(e);
       trans.error('InitialisationError', String(e));
     }
   }
@@ -136,7 +144,9 @@ chan.bind('init', function(trans, params) {
     } else {
       for (var i = 0; i < results.proteins.length; i++) {
         protein = results.proteins[i];
-        primaryAccessions.push(protein.primaryAccession);
+        if(protein.primaryAccession) { //weed out nulls
+          primaryAccessions.push(protein.primaryAccession);
+        }
       }
     }
     return primaryAccessions;
