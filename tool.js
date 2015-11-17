@@ -1,4 +1,5 @@
 var service,
+  data,
   primaryAccessionQuery = {
     Protein: {
       "from": "Protein",
@@ -11,7 +12,7 @@ var service,
     },
     Gene: {
       "from": "Gene",
-      "select": ["proteins.primaryAccession"],
+      "select": ["proteins.primaryAccession", 'symbol'],
       "where": [{
         "path": "id",
         "op": "=",
@@ -44,9 +45,13 @@ chan.bind('configure', function(trans, params) {
 
 var ui = {
   displayViewer : function(accessions) {
-    var proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer');
+    var proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer'),
+    head;
       //clear out the loader
       parentElement.innerHTML = "";
+      if(head = ui.makeParentHeader()) {
+        parentElement.appendChild(head);
+      }
     //loop through one or more accessions and get the deets.
     for (var i = 0; i < accessions.length; i++) {
       var accession = accessions[i],
@@ -56,7 +61,7 @@ var ui = {
       try {
         protein = document.createElement('div');
         protein.setAttribute('class','proteinViewer');
-        protein.appendChild(ui.makeHeader(accession));
+        protein.appendChild(ui.makeAccessionHeader(accession));
         viewer = protein.appendChild(ui.makeViewer(accession));
         parentElement.appendChild(protein)
       //populate it with the viewer
@@ -68,9 +73,19 @@ var ui = {
       } catch (e) {console.error(e);}
     }
   },
-  makeHeader : function(accession){
-    var header = document.createElement('h2');
-    header.appendChild(document.createTextNode(accession));
+  makeAccessionHeader : function(accession){
+    var header = document.createElement('h3');
+    header.appendChild(document.createTextNode('Primary Accession: '+ accession));
+    return header;
+  },
+  makeParentHeader : function(){
+    var header = false;
+    try {
+    if(data.type==="Gene") {
+      header = document.createElement('h2');
+      header.appendChild(document.createTextNode('Proteins for ' + data.type + ": " + data.symbol));
+    }
+    }catch(e){console.error(e);}
     return header;
   },
   makeViewer : function(accession){
@@ -98,7 +113,8 @@ chan.bind('init', function(trans, params) {
   service = new imjs.Service({
     root: params.service.root
   });
-  init(params.id, params.type);
+  data = params;
+  init(data.id, data.type);
 
   /**
    * Steps likes to share IDs, but the protein viewer likes primary accessions.
@@ -106,12 +122,16 @@ chan.bind('init', function(trans, params) {
    * @param  {string or int} id   an intermine/steps object id
    * @param  {string} type        "Gene" or "Protein" only.
    */
-  function init(id, type) {
-    var accessions;
+  function init() {
+    var accessions, type = data.type;
     //build query
-    primaryAccessionQuery[type].where[0].value = id;
+    primaryAccessionQuery[type].where[0].value = data.id;
     try {
       service.records(primaryAccessionQuery[type]).then(function(results) {
+        //store the symbol
+        if(type === "Gene") {
+          data.symbol = results[0].symbol;
+        }
         if (results.length) {
           accessions = getAccessions(results[0]);
           if (accessions.length) {
@@ -140,7 +160,7 @@ chan.bind('init', function(trans, params) {
     var primaryAccessions = [],
       protein;
     if (results.primaryAccession) {
-      primaryAccessions = results.primaryAccession;
+      primaryAccessions.push(results.primaryAccession);
     } else {
       for (var i = 0; i < results.proteins.length; i++) {
         protein = results.proteins[i];
