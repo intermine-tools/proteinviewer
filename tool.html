@@ -9,10 +9,28 @@
   <script src="/node_modules/jschannel/src/jschannel.js" charset="utf-8"></script>
   <link rel="stylesheet" href="node_modules/biojs-vis-proteinfeaturesviewer/build/main.css" media="screen" charset="utf-8">
   <style media="screen">
+
+
+  .proteinViewer:nth-of-type(even) {
+    background: #f6f6f6;
+    border-bottom:solid 1px #eee;
+    border-top:solid 1px #eee;
+  }
+
+  /* offset the 'not found' results*/
+  .proteinViewer h2, .proteinViewer > div {
+    margin-left:20px;
+  }
+
+  /* de-offset the actual viewer, because it's huge */
+  .proteinViewer > div .up_pftv_container{
+    margin-left:-20px;
+  }
+
     .loader,
     .loader:before,
     .loader:after {
-      background: #ffffff;
+      background: #666;
       -webkit-animation: load1 1s infinite ease-in-out;
       animation: load1 1s infinite ease-in-out;
       width: 1em;
@@ -52,11 +70,11 @@
       0%,
       80%,
       100% {
-        box-shadow: 0 0 #ffffff;
+        box-shadow: 0 0 #666;
         height: 4em;
       }
       40% {
-        box-shadow: 0 -2em #ffffff;
+        box-shadow: 0 -2em #666;
         height: 5em;
       }
     }
@@ -65,11 +83,11 @@
       0%,
       80%,
       100% {
-        box-shadow: 0 0 #ffffff;
+        box-shadow: 0 0 #666;
         height: 4em;
       }
       40% {
-        box-shadow: 0 -2em #ffffff;
+        box-shadow: 0 -2em #666;
         height: 5em;
       }
     }
