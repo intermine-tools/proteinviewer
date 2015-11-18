@@ -2,6 +2,7 @@ var service,
   data,
   cleanseCounter = 0,
   badAccessionList = [],
+  hiddenElems = [],
   settings = {
     //this is how often to check if all results are back and remove empty ones
     timeoutInterval: 500,
@@ -79,7 +80,13 @@ var ui = {
         protein.setAttribute('class', 'proteinViewer');
         protein.appendChild(ui.makeAccessionHeader(accession));
         viewer = protein.appendChild(ui.makeViewer(accession));
-        parentElement.appendChild(protein);
+
+        //if there are fewer than 5 results, append it. otherwise, just store it.
+        if(parentElement.querySelectorAll('.proteinViewer').length < 5) {
+          parentElement.appendChild(protein);
+        } else {
+          hiddenElems.push(protein);
+        }
 
         //populate it with the viewer
         var res = new proteinFeaturesViewer({
@@ -114,33 +121,56 @@ var ui = {
     viewer.setAttribute('id', 'proteinViewer-' + accession);
     return viewer;
   },
-  noResults: function(type) {
-    parentElement.innerHTML = settings.noProteins + type;
+  /**
+   * LEt's let the user know there are not results. sigh.
+   */
+  noResults: function() {
+    parentElement.innerHTML = settings.noProteins + data.type;
   },
   /**
    * The protein viewer doesn't return anything so it we can't force it not to display when there are no results. this is fine when there are a few bad proteins, but for data like fly's Dscam which currently appears to have 79 proteins associated with it, but only 3 which are *actually* proteins. Users don't want to scroll thorugh 76 'no results' divs. So, we nuke'em.
    */
   cleanseResults: function() {
     cleanseCounter++;
-    var elem, suspect, suspectName,
-      elems = parentElement.querySelectorAll('.proteinViewer');
-      console.log("%ccleansecounter","color:seagreen;font-weight:bold;", cleanseCounter);
+    var elems = parentElement.querySelectorAll('.proteinViewer'),
+    //make a copy of this array so that we can remove items from
+    //hiddenElems if they have no results. Removing items from an array
+    //you're iterating over would be messy.
+    hidden = hiddenElems.slice();
+
+    //sort through dom-attached elements
     for (var i = 0; i < elems.length; i++) {
-      elem = elems[i];
-      suspect = elem.querySelector('div');
-      //remove it if there are no features for this 'protein'
-      if (ui.isEmpty(suspect.innerHTML)) {
-        parentElement.removeChild(elem);
-        //save the bad ones for later so we can tell the user.
-        suspectName = suspect.getAttribute('id').split('proteinViewer-')[1];
-        badAccessionList.push(suspectName);
-      }
+      ui.removeIfEmpty(elems[i]);
     }
+
+    //sort through hidden ones
+    for (var i = 0; i < hidden.length; i++) {
+      ui.removeIfEmpty(hidden[i]);
+    }
+
+
     //now, we output the list of bad accessions in case someone cares.
     ui.listCleansedResults(badAccessionList);
     //rinse and repeat for some time to give ajax calls time to return.
     if (cleanseCounter < settings.numberOfTimesToCheckResults) {
       setTimeout(ui.cleanseResults, settings.timeoutInterval);
+    }
+  },
+  removeIfEmpty : function(elem){
+    var elem, suspect, suspectName,
+    suspect = elem.querySelector('div');
+    //remove it if there are no features for this 'protein'
+    if (ui.isEmpty(suspect.innerHTML)) {
+      if(elem.parentNode) {
+        //remove it if it's attached to the dom
+        parentElement.removeChild(elem);
+      } else {
+        //it must be a hidden elem. Remove it from the main hidden array
+        hiddenElems.splice(hiddenElems.indexOf(elem),1);
+      }
+      //save the bad ones for later so we can tell the user.
+      suspectName = suspect.getAttribute('id').split('proteinViewer-')[1];
+      badAccessionList.push(suspectName);
     }
   },
   isEmpty : function(htmlToCheck){
