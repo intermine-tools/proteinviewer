@@ -128,13 +128,13 @@ chan.bind('init', function(trans, params) {
     primaryAccessionQuery[type].where[0].value = data.id;
     try {
       service.records(primaryAccessionQuery[type]).then(function(results) {
-        //store the symbol
-        if(type === "Gene") {
-          data.symbol = results[0].symbol;
-        }
-        if (results.length) {
+        if (results.length >0) {
+          //store the symbol
+          if(type === "Gene") {
+            data.symbol = results[0].symbol;
+          }
           accessions = getAccessions(results[0]);
-          if (accessions.length) {
+          if (accessions.length > 0) {
             //show results
               ui.displayViewer(accessions);
           } else {
