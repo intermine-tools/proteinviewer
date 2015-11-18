@@ -1,5 +1,21 @@
 var service,
   data,
+  cleanseCounter = 0,
+  badAccessionList = [],
+  settings = {
+    //this is how often to check if all results are back and remove empty ones
+    timeoutInterval: 500,
+    //this is how many times to do it. so 20numberOfTimes * 500ms timeoutInterval
+    //= check remove bad results for 5 seconds (5,000 ms).
+    numberOfTimesToCheckResults: 10,
+    //these are useful strings.
+    noProteins: ":( Sorry, there are no proteins associated with this ",
+    noFeaturesAssociated: "The following primary accessions had no features associated with them: ",
+    viewer: {
+      noFeatures: "No features available for protein",
+      notFound : "is not found"
+    }
+  },
   primaryAccessionQuery = {
     Protein: {
       "from": "Protein",
@@ -21,13 +37,13 @@ var service,
     }
   },
   parentElement = document.getElementById('imFeaturesViewer'),
-chan = Channel.build({
-  window: window.parent,
-  origin: "*",
-  scope: "CurrentStep"
-});
+  chan = Channel.build({
+    window: window.parent,
+    origin: "*",
+    scope: "CurrentStep"
+  });
 
-chan.bind('style', function (trans, params) {
+chan.bind('style', function(trans, params) {
 
   var head = document.getElementsByTagName("head")[0];
   var link = document.createElement('link');
@@ -44,57 +60,115 @@ chan.bind('configure', function(trans, params) {
 });
 
 var ui = {
-  displayViewer : function(accessions) {
+  displayViewer: function(accessions) {
     var proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer'),
-    head;
-      //clear out the loader
-      parentElement.innerHTML = "";
-      if(head = ui.makeParentHeader()) {
-        parentElement.appendChild(head);
-      }
+      head;
+    //clear out the loader
+    parentElement.innerHTML = "";
+    if (head = ui.makeParentHeader()) {
+      parentElement.appendChild(head);
+    }
     //loop through one or more accessions and get the deets.
     for (var i = 0; i < accessions.length; i++) {
       var accession = accessions[i],
-      viewer, protein;
+        viewer, protein;
 
       //add title and container elements
       try {
         protein = document.createElement('div');
-        protein.setAttribute('class','proteinViewer');
+        protein.setAttribute('class', 'proteinViewer');
         protein.appendChild(ui.makeAccessionHeader(accession));
         viewer = protein.appendChild(ui.makeViewer(accession));
-        parentElement.appendChild(protein)
-      //populate it with the viewer
+        parentElement.appendChild(protein);
+
+        //populate it with the viewer
         var res = new proteinFeaturesViewer({
           el: viewer,
           uniprotacc: accession
         });
         //check for bad results
-      } catch (e) {console.error(e);}
+      } catch (e) {
+        console.error(e);
+      }
     }
   },
-  makeAccessionHeader : function(accession){
+  makeAccessionHeader: function(accession) {
     var header = document.createElement('h3');
-    header.appendChild(document.createTextNode('Primary Accession: '+ accession));
+    header.appendChild(document.createTextNode('Primary Accession: ' + accession));
     return header;
   },
-  makeParentHeader : function(){
+  makeParentHeader: function() {
     var header = false;
     try {
-    if(data.type==="Gene") {
-      header = document.createElement('h2');
-      header.appendChild(document.createTextNode('Proteins for ' + data.type + ": " + data.symbol));
+      if (data.type === "Gene") {
+        header = document.createElement('h2');
+        header.appendChild(document.createTextNode('Proteins for ' + data.type + ": " + data.symbol));
+      }
+    } catch (e) {
+      console.error(e);
     }
-    }catch(e){console.error(e);}
     return header;
   },
-  makeViewer : function(accession){
+  makeViewer: function(accession) {
     var viewer = document.createElement('div');
-    viewer.setAttribute('id','proteinViewer-'+accession);
+    viewer.setAttribute('id', 'proteinViewer-' + accession);
     return viewer;
   },
-  noResults : function (type) {
-    parentElement.innerHTML = ":( Sorry, there are no proteins associated with this " + type;
+  noResults: function(type) {
+    parentElement.innerHTML = settings.noProteins + type;
+  },
+  /**
+   * The protein viewer doesn't return anything so it we can't force it not to display when there are no results. this is fine when there are a few bad proteins, but for data like fly's Dscam which currently appears to have 79 proteins associated with it, but only 3 which are *actually* proteins. Users don't want to scroll thorugh 76 'no results' divs. So, we nuke'em.
+   */
+  cleanseResults: function() {
+    cleanseCounter++;
+    var elem, suspect, suspectName,
+      elems = parentElement.querySelectorAll('.proteinViewer');
+      console.log("%ccleansecounter","color:seagreen;font-weight:bold;", cleanseCounter);
+    for (var i = 0; i < elems.length; i++) {
+      elem = elems[i];
+      suspect = elem.querySelector('div');
+      //remove it if there are no features for this 'protein'
+      if (ui.isEmpty(suspect.innerHTML)) {
+        parentElement.removeChild(elem);
+        //save the bad ones for later so we can tell the user.
+        suspectName = suspect.getAttribute('id').split('proteinViewer-')[1];
+        badAccessionList.push(suspectName);
+      }
+    }
+    //now, we output the list of bad accessions in case someone cares.
+    ui.listCleansedResults(badAccessionList);
+    //rinse and repeat for some time to give ajax calls time to return.
+    if (cleanseCounter < settings.numberOfTimesToCheckResults) {
+      setTimeout(ui.cleanseResults, settings.timeoutInterval);
+    }
+  },
+  isEmpty : function(htmlToCheck){
+    var isEmpty = false;
+    //does the div display a 'no features' message?
+    isEmpty = (htmlToCheck.indexOf(settings.viewer.noFeatures) === 0);
+    //does it display a 'primary accession "BLAHBLAH" is not found' message?
+    isEmpty = isEmpty || (htmlToCheck.indexOf(settings.viewer.notFound) >= 0);
+    return isEmpty;
+  },
+  /**
+   * Helper for CleanseResults. Shows users which divs were ommitted due
+   * to no protein features
+   * @param  {array} listOfResults List of Primary Accessions associated with this gene or protein, but only ones that have no features.
+   */
+  listCleansedResults: function(listOfResults) {
+    var notShown = document.createElement('div'),
+      notShownText = document.createTextNode(settings.noFeaturesAssociated + listOfResults.join(', '));
+    notShown.setAttribute('class', 'well');
+    notShown.setAttribute('id', 'badResults');
+    notShown.appendChild(notShownText);
+    //append results or replace them if they're already present
+    var existingBadResults = document.getElementById('badResults');
+    if (!existingBadResults) {
+      parentElement.appendChild(notShown);
+    } else {
+      parentElement.replaceChild(notShown,existingBadResults);
+    }
   }
 };
 
@@ -128,15 +202,15 @@ chan.bind('init', function(trans, params) {
     primaryAccessionQuery[type].where[0].value = data.id;
     try {
       service.records(primaryAccessionQuery[type]).then(function(results) {
-        if (results.length >0) {
+        if (results.length > 0) {
           //store the symbol
-          if(type === "Gene") {
+          if (type === "Gene") {
             data.symbol = results[0].symbol;
           }
           accessions = getAccessions(results[0]);
           if (accessions.length > 0) {
             //show results
-              ui.displayViewer(accessions);
+            ui.displayViewer(accessions);
           } else {
             //the double sorry is a bit messy.
             ui.noResults(type);
@@ -145,6 +219,8 @@ chan.bind('init', function(trans, params) {
           //show sorry because there are no results.
           ui.noResults(type);
         }
+        //check for dud results.
+        setTimeout(ui.cleanseResults, settings.timeoutInterval);
       });
     } catch (e) {
       console.error(e);
@@ -164,7 +240,7 @@ chan.bind('init', function(trans, params) {
     } else {
       for (var i = 0; i < results.proteins.length; i++) {
         protein = results.proteins[i];
-        if(protein.primaryAccession) { //weed out nulls
+        if (protein.primaryAccession) { //weed out nulls
           primaryAccessions.push(protein.primaryAccession);
         }
       }
