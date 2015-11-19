@@ -214,17 +214,17 @@ var ui = {
    */
   replenishResultCount: function(){
     if((ui.getNumResults() < settings.maxResultsToShow) && (elems.hidden.length > 0)) {
-      var i = 0,
-      results = elems.hidden.slice();
-      for( var i = 0; i < settings.maxResultsToShow; i++) {
-        if(elems.hidden.length > 0 && results[i]) {
-          //append to dom
+      var newElem;
+      //if you remove elements from an array you're iterating over, counting
+      //backwards prevents the array index from messing up.
+      for(var i = settings.maxResultsToShow; i >0; i--) {
+        if(elems.hidden.length > 0) {
           try {
-            elems.parentElement.appendChild(results[i]);
-          //remove from list
-        } catch (e) {console.error(e, results[i]);}
-          elems.hidden.shift();
-          i++;
+            newElem = elems.hidden.pop();
+            elems.parentElement.appendChild(newElem);
+          } catch (e) {
+            console.error(e, newElem);
+          }
         }
       }
     }
