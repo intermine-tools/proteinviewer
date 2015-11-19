@@ -2,6 +2,7 @@ var service,
   data,
   cleanseCounter = 0,
   badAccessionList = [],
+  //ui elements
   elems = {
     hidden : [],
     parentElement: document.getElementById('imFeaturesViewer'),
@@ -158,10 +159,7 @@ var ui = {
     //accessions were all ones with no data. Check for this and add more results if we have them.
     ui.replenishResultCount();
 
-    //after up to 5 results are shown, check if we need a 'show all' button
-    if(elems.hidden.length > 0) {
-      ui.makeShowAllControl();
-    }
+    ui.makeShowAllControl();
 
     //rinse and repeat for some time to give ajax calls time to return.
     if (cleanseCounter < settings.numberOfTimesToCheckResults) {
@@ -169,12 +167,14 @@ var ui = {
     }
   },
   makeShowAllControl : function() {
-    //Only show it if it's not there already.
-    if(!document.getElementById('showAll')) {
+    var showAll = document.getElementById('showAll');
+    if(elems.hidden.length > 0) {
       //X of x results:
-      var showAll = document.createElement('div');
-      showAll.setAttribute('id', 'showAll');
       var showAllText = document.createTextNode("Showing " + settings.maxResultsToShow + " results of " + (settings.maxResultsToShow + elems.hidden.length));
+
+      //empty out the old stuff
+      showAll.innerHTML = "";
+
       showAll.appendChild(showAllText);
 
       //Show all button:
@@ -189,8 +189,8 @@ var ui = {
       });
 
       showAll.appendChild(showAllButton);
-
-      elems.parentElement.appendChild(showAll);
+    } else {
+      showAll.innerHTML = "";
     }
   },
   /**
@@ -198,19 +198,14 @@ var ui = {
    * @return {[type]} [description]
    */
   showAllResults : function(){
-    //Stick this back on after we've appended all the viewers
-    var badResults = document.getElementById('badResults');
-    badResults.remove();
-
     //remove the show all button.
     try {
-      document.getElementById('showAll').remove();
+      document.getElementById('showAll').innerHTML = "";
     } catch(e) {console.error(e);}
 
     for (var i = 0; i < elems.hidden.length; i++) {
       elems.parentElement.appendChild(elems.hidden[i]);
     }
-    elems.parentElement.appendChild(badResults);
   },
 
   /**
@@ -268,18 +263,12 @@ var ui = {
    * @param  {array} listOfResults List of Primary Accessions associated with this gene or protein, but only ones that have no features.
    */
   listCleansedResults: function(listOfResults) {
-    var notShown = document.createElement('div'),
+    var notShown = document.getElementById('badResults'),
       notShownText = document.createTextNode(settings.noFeaturesAssociated + listOfResults.join(', '));
+
+    notShown.innerHTML = "";
     notShown.setAttribute('class', 'well');
-    notShown.setAttribute('id', 'badResults');
     notShown.appendChild(notShownText);
-    //append results or replace them if they're already present
-    var existingBadResults = document.getElementById('badResults');
-    if (!existingBadResults) {
-      elems.parentElement.appendChild(notShown);
-    } else {
-      elems.parentElement.replaceChild(notShown,existingBadResults);
-    }
   }
 };
 
