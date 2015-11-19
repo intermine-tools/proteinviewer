@@ -2,7 +2,11 @@ var service,
   data,
   cleanseCounter = 0,
   badAccessionList = [],
-  hiddenElems = [],
+  elems = {
+    hidden : [],
+    parentElement: document.getElementById('imFeaturesViewer'),
+    footerElement: document.getElementById('imFeaturesFooter')
+  },
   settings = {
     maxResultsToShow : 5,
     //this is how often to check if all results are back and remove empty ones
@@ -38,7 +42,6 @@ var service,
       }]
     }
   },
-  parentElement = document.getElementById('imFeaturesViewer'),
   chan = Channel.build({
     window: window.parent,
     origin: "*",
@@ -66,9 +69,9 @@ var ui = {
     var proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer'),
       head;
     //clear out the loader
-    parentElement.innerHTML = "";
+    elems.parentElement.innerHTML = "";
     if (head = ui.makeParentHeader()) {
-      parentElement.appendChild(head);
+      elems.parentElement.appendChild(head);
     }
     //loop through one or more accessions and get the deets.
     for (var i = 0; i < accessions.length; i++) {
@@ -83,10 +86,10 @@ var ui = {
         viewer = protein.appendChild(ui.makeViewer(accession));
 
         //if there are fewer than 5 results, append it. otherwise, just store it.
-        if(parentElement.querySelectorAll('.proteinViewer').length < settings.maxResultsToShow) {
-          parentElement.appendChild(protein);
+        if(elems.parentElement.querySelectorAll('.proteinViewer').length < settings.maxResultsToShow) {
+          elems.parentElement.appendChild(protein);
         } else {
-          hiddenElems.push(protein);
+          elems.hidden.push(protein);
         }
 
         //populate it with the viewer
@@ -126,21 +129,21 @@ var ui = {
    * LEt's let the user know there are not results. sigh.
    */
   noResults: function() {
-    parentElement.innerHTML = settings.noProteins + data.type;
+    elems.parentElement.innerHTML = settings.noProteins + data.type;
   },
   /**
    * The protein viewer doesn't return anything so it we can't force it not to display when there are no results. this is fine when there are a few bad proteins, but for data like fly's Dscam which currently appears to have 79 proteins associated with it, but only 3 which are *actually* proteins. Users don't want to scroll thorugh 76 'no results' divs. So, we nuke'em.
    */
   cleanseResults: function() {
     cleanseCounter++;
-    var elems = parentElement.querySelectorAll('.proteinViewer'),
+    var results = elems.parentElement.querySelectorAll('.proteinViewer'),
     //make a copy of this array so that we can remove items from
-    //hiddenElems if they have no results. Removing items from an array
+    //elems.hidden if they have no results. Removing items from an array
     //you're iterating over would be messy.
-    hidden = hiddenElems.slice();
+    hidden = elems.hidden.slice();
     //sort through dom-attached elements
-    for (var i = 0; i < elems.length; i++) {
-      ui.removeIfEmpty(elems[i]);
+    for (var i = 0; i < results.length; i++) {
+      ui.removeIfEmpty(results[i]);
     }
 
     //sort through hidden ones
@@ -156,7 +159,7 @@ var ui = {
     ui.replenishResultCount();
 
     //after up to 5 results are shown, check if we need a 'show all' button
-    if(hiddenElems.length > 0) {
+    if(elems.hidden.length > 0) {
       ui.makeShowAllControl();
     }
 
@@ -171,7 +174,7 @@ var ui = {
       //X of x results:
       var showAll = document.createElement('div');
       showAll.setAttribute('id', 'showAll');
-      var showAllText = document.createTextNode("Showing " + settings.maxResultsToShow + " results of " + (settings.maxResultsToShow + hiddenElems.length));
+      var showAllText = document.createTextNode("Showing " + settings.maxResultsToShow + " results of " + (settings.maxResultsToShow + elems.hidden.length));
       showAll.appendChild(showAllText);
 
       //Show all button:
@@ -187,7 +190,7 @@ var ui = {
 
       showAll.appendChild(showAllButton);
 
-      parentElement.appendChild(showAll);
+      elems.parentElement.appendChild(showAll);
     }
   },
   /**
@@ -204,10 +207,10 @@ var ui = {
       document.getElementById('showAll').remove();
     } catch(e) {console.error(e);}
 
-    for (var i = 0; i < hiddenElems.length; i++) {
-      parentElement.appendChild(hiddenElems[i]);
+    for (var i = 0; i < elems.hidden.length; i++) {
+      elems.parentElement.appendChild(elems.hidden[i]);
     }
-    parentElement.appendChild(badResults);
+    elems.parentElement.appendChild(badResults);
   },
 
   /**
@@ -215,24 +218,24 @@ var ui = {
    * if it's less than settings.maxresultstoshow, add some more
    */
   replenishResultCount: function(){
-    if((ui.getNumResults() < settings.maxResultsToShow) && (hiddenElems.length > 0)) {
+    if((ui.getNumResults() < settings.maxResultsToShow) && (elems.hidden.length > 0)) {
       var i = 0,
-      elems = hiddenElems.slice();
+      results = elems.hidden.slice();
       for( var i = 0; i < settings.maxResultsToShow; i++) {
-        if(hiddenElems.length > 0) {
+        if(elems.hidden.length > 0 && results[i]) {
           //append to dom
           try {
-            parentElement.appendChild(elems[i]);
+            elems.parentElement.appendChild(results[i]);
           //remove from list
-        } catch (e) {console.error(e);}
-          hiddenElems.shift();
+        } catch (e) {console.error(e, results[i]);}
+          elems.hidden.shift();
           i++;
         }
       }
     }
   },
   getNumResults : function (){
-    return parentElement.querySelectorAll('.proteinViewer').length;
+    return elems.parentElement.querySelectorAll('.proteinViewer').length;
   },
   removeIfEmpty : function(elem){
     var elem, suspect, suspectName;
@@ -241,10 +244,10 @@ var ui = {
     if (ui.isEmpty(suspect.innerHTML)) {
       if(elem.parentNode) {
         //remove it if it's attached to the dom
-        parentElement.removeChild(elem);
+        elems.parentElement.removeChild(elem);
       } else {
         //it must be a hidden elem. Remove it from the main hidden array
-        hiddenElems.splice(hiddenElems.indexOf(elem),1);
+        elems.hidden.splice(elems.hidden.indexOf(elem),1);
       }
       //save the bad ones for later so we can tell the user.
       suspectName = suspect.getAttribute('id').split('proteinViewer-')[1];
@@ -273,9 +276,9 @@ var ui = {
     //append results or replace them if they're already present
     var existingBadResults = document.getElementById('badResults');
     if (!existingBadResults) {
-      parentElement.appendChild(notShown);
+      elems.parentElement.appendChild(notShown);
     } else {
-      parentElement.replaceChild(notShown,existingBadResults);
+      elems.parentElement.replaceChild(notShown,existingBadResults);
     }
   }
 };
