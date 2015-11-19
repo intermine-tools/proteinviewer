@@ -4,6 +4,7 @@ var service,
   badAccessionList = [],
   hiddenElems = [],
   settings = {
+    maxResultsToShow : 5,
     //this is how often to check if all results are back and remove empty ones
     timeoutInterval: 500,
     //this is how many times to do it. so 20numberOfTimes * 500ms timeoutInterval
@@ -11,7 +12,7 @@ var service,
     numberOfTimesToCheckResults: 10,
     //these are useful strings.
     noProteins: ":( Sorry, there are no proteins associated with this ",
-    noFeaturesAssociated: "The following primary accessions had no features associated with them: ",
+    noFeaturesAssociated: "The following proteins had no features associated with them: ",
     viewer: {
       noFeatures: "No features available for protein",
       notFound : "is not found"
@@ -20,7 +21,7 @@ var service,
   primaryAccessionQuery = {
     Protein: {
       "from": "Protein",
-      "select": ["primaryAccession"],
+      "select": ["primaryAccession", "primaryIdentifier"],
       "where": [{
         "path": "id",
         "op": "=",
@@ -29,7 +30,7 @@ var service,
     },
     Gene: {
       "from": "Gene",
-      "select": ["proteins.primaryAccession", 'symbol'],
+      "select": ["proteins.primaryAccession", "proteins.primaryIdentifier", 'symbol'],
       "where": [{
         "path": "id",
         "op": "=",
@@ -82,7 +83,7 @@ var ui = {
         viewer = protein.appendChild(ui.makeViewer(accession));
 
         //if there are fewer than 5 results, append it. otherwise, just store it.
-        if(parentElement.querySelectorAll('.proteinViewer').length < 5) {
+        if(parentElement.querySelectorAll('.proteinViewer').length < settings.maxResultsToShow) {
           parentElement.appendChild(protein);
         } else {
           hiddenElems.push(protein);
@@ -137,7 +138,6 @@ var ui = {
     //hiddenElems if they have no results. Removing items from an array
     //you're iterating over would be messy.
     hidden = hiddenElems.slice();
-
     //sort through dom-attached elements
     for (var i = 0; i < elems.length; i++) {
       ui.removeIfEmpty(elems[i]);
@@ -148,16 +148,94 @@ var ui = {
       ui.removeIfEmpty(hidden[i]);
     }
 
-
     //now, we output the list of bad accessions in case someone cares.
     ui.listCleansedResults(badAccessionList);
+    //since we only show a finite number of results, it's possible that we
+    //just 'cleansed' all of the results out of the viewport if the first five
+    //accessions were all ones with no data. Check for this and add more results if we have them.
+    ui.replenishResultCount();
+
+    //after up to 5 results are shown, check if we need a 'show all' button
+    if(hiddenElems.length > 0) {
+      ui.makeShowAllControl();
+    }
+
     //rinse and repeat for some time to give ajax calls time to return.
     if (cleanseCounter < settings.numberOfTimesToCheckResults) {
       setTimeout(ui.cleanseResults, settings.timeoutInterval);
     }
   },
+  makeShowAllControl : function() {
+    //Only show it if it's not there already.
+    if(!document.getElementById('showAll')) {
+      //X of x results:
+      var showAll = document.createElement('div');
+      showAll.setAttribute('id', 'showAll');
+      var showAllText = document.createTextNode("Showing " + settings.maxResultsToShow + " results of " + (settings.maxResultsToShow + hiddenElems.length));
+      showAll.appendChild(showAllText);
+
+      //Show all button:
+      var showAllButton = document.createElement('button');
+      showAllButton.setAttribute('class','btn');
+      var showAllButtonText = document.createTextNode('Show all');
+      showAllButton.appendChild(showAllButtonText);
+
+      //show all button behaviour
+      showAllButton.addEventListener('click', function(){
+        ui.showAllResults();
+      });
+
+      showAll.appendChild(showAllButton);
+
+      parentElement.appendChild(showAll);
+    }
+  },
+  /**
+   * [function description]
+   * @return {[type]} [description]
+   */
+  showAllResults : function(){
+    //Stick this back on after we've appended all the viewers
+    var badResults = document.getElementById('badResults');
+    badResults.remove();
+
+    //remove the show all button.
+    try {
+      document.getElementById('showAll').remove();
+    } catch(e) {console.error(e);}
+
+    for (var i = 0; i < hiddenElems.length; i++) {
+      parentElement.appendChild(hiddenElems[i]);
+    }
+    parentElement.appendChild(badResults);
+  },
+
+  /**
+   * Helper for cleanseResults. Check how many results we can see
+   * if it's less than settings.maxresultstoshow, add some more
+   */
+  replenishResultCount: function(){
+    if((ui.getNumResults() < settings.maxResultsToShow) && (hiddenElems.length > 0)) {
+      var i = 0,
+      elems = hiddenElems.slice();
+      for( var i = 0; i < settings.maxResultsToShow; i++) {
+        if(hiddenElems.length > 0) {
+          //append to dom
+          try {
+            parentElement.appendChild(elems[i]);
+          //remove from list
+        } catch (e) {console.error(e);}
+          hiddenElems.shift();
+          i++;
+        }
+      }
+    }
+  },
+  getNumResults : function (){
+    return parentElement.querySelectorAll('.proteinViewer').length;
+  },
   removeIfEmpty : function(elem){
-    var elem, suspect, suspectName,
+    var elem, suspect, suspectName;
     suspect = elem.querySelector('div');
     //remove it if there are no features for this 'protein'
     if (ui.isEmpty(suspect.innerHTML)) {
@@ -272,6 +350,8 @@ chan.bind('init', function(trans, params) {
         protein = results.proteins[i];
         if (protein.primaryAccession) { //weed out nulls
           primaryAccessions.push(protein.primaryAccession);
+        } else {
+          badAccessionList.push(protein.primaryIdentifier);
         }
       }
     }
