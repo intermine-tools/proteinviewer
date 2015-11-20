@@ -1,5 +1,5 @@
 // Karma configuration
-// Generated on Thu Nov 19 2015 17:00:17 GMT+0000 (GMT)
+// Generated on Fri Nov 20 2015 11:30:39 GMT+0000 (GMT)
 
 module.exports = function(config) {
   config.set({
@@ -10,32 +10,44 @@ module.exports = function(config) {
 
     // frameworks to use
     // available frameworks: https://npmjs.org/browse/keyword/karma-adapter
-    frameworks: ['jasmine', 'requirejs'],
-
+    frameworks: ['jasmine'],
 
     // list of files / patterns to load in the browser
-    files: [
-      'test-main.js',
-      '../tool.js',
-      {pattern: '*.spec.js', included: false}
+    	files: [
+    	  'test/index.js'
+    	],
+
+
+    	// list of preprocessors
+    	preprocessors: {
+    	  'test/*': ['webpack']
+    	},
+
+
+    	webpack: {
+    		resolve: {
+    			extensions: ["", ".js"]
+    		}
+    	},
+
+
+    	webpackMiddleware: {
+    		stats: {
+    			colors: true
+    		}
+    	},
+
+    plugins: [
+      require("karma-webpack"),
+      'karma-jasmine',
+      'karma-chrome-launcher',
+      'karma-phantomjs-launcher'
     ],
-
-
-    // list of files to exclude
-    exclude: [
-    ],
-
-
-    // preprocess matching files before serving them to the browser
-    // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
-    preprocessors: {
-    },
-
 
     // test results reporter to use
     // possible values: 'dots', 'progress'
     // available reporters: https://npmjs.org/browse/keyword/karma-reporter
-    reporters: ['mocha'],
+    reporters: ['progress'],
 
 
     // web server port

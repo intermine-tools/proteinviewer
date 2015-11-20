@@ -295,67 +295,6 @@ chan.bind('init', function(trans, params) {
   data = params;
   init(data.id, data.type);
 
-  /**
-   * Steps likes to share IDs, but the protein viewer likes primary accessions.
-   * So, let's getthe accession for a given protein or gene.
-   * @param  {string or int} id   an intermine/steps object id
-   * @param  {string} type        "Gene" or "Protein" only.
-   */
-  function init() {
-    var accessions, type = data.type;
-    //build query
-    primaryAccessionQuery[type].where[0].value = data.id;
-    try {
-      service.records(primaryAccessionQuery[type]).then(function(results) {
-        if (results.length > 0) {
-          //store the symbol
-          if (type === "Gene") {
-            data.symbol = results[0].symbol;
-          }
-          accessions = getAccessions(results[0]);
-          if (accessions.length > 0) {
-            //show results
-            ui.displayViewer(accessions);
-          } else {
-            //the double sorry is a bit messy.
-            ui.noResults(type);
-          }
-        } else {
-          //show sorry because there are no results.
-          ui.noResults(type);
-        }
-        //check for dud results.
-        setTimeout(ui.cleanseResults, settings.timeoutInterval);
-      });
-    } catch (e) {
-      console.error(e);
-      trans.error('InitialisationError', String(e));
-    }
-  }
-
-  /*
-   * Protein results are nested deeper than gene results, so we need to select
-   * the correct part of the data depending on which we have.
-   */
-  function getAccessions(results) {
-    var primaryAccessions = [],
-      protein;
-    if (results.primaryAccession) {
-      primaryAccessions.push(results.primaryAccession);
-    } else {
-      for (var i = 0; i < results.proteins.length; i++) {
-        protein = results.proteins[i];
-        if (protein.primaryAccession) { //weed out nulls
-          primaryAccessions.push(protein.primaryAccession);
-        } else {
-          badAccessionList.push(protein.primaryIdentifier);
-        }
-      }
-    }
-    return primaryAccessions;
-  }
-
-
   function hasItem(id, type) {
     // Notify as generic and specific item.
     chan.notify({
@@ -400,3 +339,68 @@ chan.bind('init', function(trans, params) {
     });
   }
 });
+
+/**
+ * Steps likes to share IDs, but the protein viewer likes primary accessions.
+ * So, let's getthe accession for a given protein or gene.
+ * @param  {string or int} id   an intermine/steps object id
+ * @param  {string} type        "Gene" or "Protein" only.
+ */
+function init() {
+  var accessions, type = data.type;
+  //build query
+  primaryAccessionQuery[type].where[0].value = data.id;
+  try {
+    service.records(primaryAccessionQuery[type]).then(function(results) {
+      if (results.length > 0) {
+        //store the symbol
+        if (type === "Gene") {
+          data.symbol = results[0].symbol;
+        }
+        accessions = getAccessions(results[0]);
+        if (accessions.length > 0) {
+          //show results
+          ui.displayViewer(accessions);
+        } else {
+          //the double sorry is a bit messy.
+          ui.noResults(type);
+        }
+      } else {
+        //show sorry because there are no results.
+        ui.noResults(type);
+      }
+      //check for dud results.
+      setTimeout(ui.cleanseResults, settings.timeoutInterval);
+    });
+  } catch (e) {
+    console.error(e);
+    trans.error('InitialisationError', String(e));
+  }
+}
+
+/*
+ * Protein results are nested deeper than gene results, so we need to select
+ * the correct part of the data depending on which we have.
+ */
+function getAccessions(results) {
+  var primaryAccessions = [],
+    protein;
+  if (results.primaryAccession) {
+    primaryAccessions.push(results.primaryAccession);
+  } else {
+    for (var i = 0; i < results.proteins.length; i++) {
+      protein = results.proteins[i];
+      if (protein.primaryAccession) { //weed out nulls
+        primaryAccessions.push(protein.primaryAccession);
+      } else {
+        badAccessionList.push(protein.primaryIdentifier);
+      }
+    }
+  }
+  return primaryAccessions;
+}
+
+module.exports = {
+  init: init,
+  ui : ui
+}
