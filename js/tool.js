@@ -1,7 +1,7 @@
 //dependencies
-var imjs = require('./node_modules/imjs/dist/im.js'),
+var imjs = require('./../node_modules/imjs/dist/im.js'),
 proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer'),
-Channel = require('./node_modules/jschannel/src/jschannel');
+Channel = require('./../node_modules/jschannel/src/jschannel');
 
 //the app
 var service,
