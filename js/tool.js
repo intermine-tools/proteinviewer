@@ -3,6 +3,8 @@ var imjs = require('./../node_modules/imjs/dist/im.js'),
 proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer'),
 Channel = require('./../node_modules/jschannel/src/jschannel');
 
+require("!style!css!./../node_modules/biojs-vis-proteinfeaturesviewer/build/main.css");
+
 //the app
 var service,
   data,
@@ -289,11 +291,17 @@ var ui = {
  * @return {[type]}          [description]
  */
 chan.bind('init', function(trans, params) {
+
+  console.log("%c2","color:seagreen;font-weight:bold;",params);
+
   service = new imjs.Service({
     root: params.service.root
   });
   data = params;
   init(data.id, data.type);
+
+  console.log("%c3","color:seagreen;font-weight:bold;",3);
+
 
   function hasItem(id, type) {
     // Notify as generic and specific item.
@@ -347,9 +355,10 @@ chan.bind('init', function(trans, params) {
  * @param  {string} type        "Gene" or "Protein" only.
  */
 function init() {
+  debugger;
   var accessions, type = data.type;
   //build query
-  primaryAccessionQuery[type].where[0].value = data.id;
+  primaryAccessionQuery[type].where[0].value = data.ids[0];
   try {
     service.records(primaryAccessionQuery[type]).then(function(results) {
       if (results.length > 0) {
