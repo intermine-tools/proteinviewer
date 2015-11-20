@@ -399,11 +399,3 @@ function getAccessions(results) {
   }
   return primaryAccessions;
 }
-
-console.log("%cdata","color:seagreen;font-weight:bold;",data);
-
-module.exports = {
-  init: init,
-  ui : ui,
-  data:data
-}
