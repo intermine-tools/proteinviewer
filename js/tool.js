@@ -1,7 +1,8 @@
 //dependencies
 var imjs = require('./../node_modules/imjs/dist/im.js'),
-proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer'),
-Channel = require('./../node_modules/jschannel/src/jschannel');
+  proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer'),
+  Channel = require('./../node_modules/jschannel/src/jschannel'),
+  Promise = require('./../node_modules/es6-promise/dist/es6-promise').Promise;
 
 require("!style!css!./../node_modules/biojs-vis-proteinfeaturesviewer/build/main.css");
 
@@ -12,12 +13,13 @@ var service,
   badAccessionList = [],
   //ui elements
   elems = {
-    hidden : [],
+    hidden: [],
     parentElement: document.getElementById('imFeaturesViewer'),
-    footerElement: document.getElementById('imFeaturesFooter')
+    footerElement: document.getElementById('imFeaturesFooter'),
+    chooserElement: document.getElementById('imChooser')
   },
   settings = {
-    maxResultsToShow : 5,
+    maxResultsToShow: 5,
     //this is how often to check if all results are back and remove empty ones
     timeoutInterval: 500,
     //this is how many times to do it. so 20numberOfTimes * 500ms timeoutInterval
@@ -28,7 +30,7 @@ var service,
     noFeaturesAssociated: "The following proteins had no features associated with them: ",
     viewer: {
       noFeatures: "No features available for protein",
-      notFound : "is not found"
+      notFound: "is not found"
     }
   },
   primaryAccessionQuery = {
@@ -48,6 +50,25 @@ var service,
         "path": "id",
         "op": "=",
         "code": "A"
+      }]
+    }
+  },
+  selectAnItemQuery = {
+    Gene: {
+      "from": "Gene",
+      "select": ['symbol', 'primaryIdentifier'],
+      "where": [{
+        "path": "id",
+        "op": "ONE OF",
+        "values": null
+      }]
+    },
+    Protein: {
+      "select": ['primaryAccession', 'primaryIdentifier'],
+      "where": [{
+        "path": "id",
+        "op": "ONE OF",
+        "values": null
       }]
     }
   },
@@ -94,7 +115,7 @@ var ui = {
         viewer = protein.appendChild(ui.makeViewer(accession));
 
         //if there are fewer than 5 results, append it. otherwise, just store it.
-        if(elems.parentElement.querySelectorAll('.proteinViewer').length < settings.maxResultsToShow) {
+        if (elems.parentElement.querySelectorAll('.proteinViewer').length < settings.maxResultsToShow) {
           elems.parentElement.appendChild(protein);
         } else {
           elems.hidden.push(protein);
@@ -121,7 +142,7 @@ var ui = {
     try {
       if (data.type === "Gene") {
         header = document.createElement('h2');
-        header.appendChild(document.createTextNode('Proteins for ' + data.type + ": " + data.symbol));
+        header.appendChild(document.createTextNode('Proteins for ' + data.type + ": " + data.identifier));
       }
     } catch (e) {
       console.error(e);
@@ -145,10 +166,10 @@ var ui = {
   cleanseResults: function() {
     cleanseCounter++;
     var results = elems.parentElement.querySelectorAll('.proteinViewer'),
-    //make a copy of this array so that we can remove items from
-    //elems.hidden if they have no results. Removing items from an array
-    //you're iterating over would be messy.
-    hidden = elems.hidden.slice();
+      //make a copy of this array so that we can remove items from
+      //elems.hidden if they have no results. Removing items from an array
+      //you're iterating over would be messy.
+      hidden = elems.hidden.slice();
     //sort through dom-attached elements
     for (var i = 0; i < results.length; i++) {
       ui.removeIfEmpty(results[i]);
@@ -173,9 +194,9 @@ var ui = {
       setTimeout(ui.cleanseResults, settings.timeoutInterval);
     }
   },
-  makeShowAllControl : function() {
+  makeShowAllControl: function() {
     var showAll = document.getElementById('showAll');
-    if(elems.hidden.length > 0) {
+    if (elems.hidden.length > 0) {
       //X of x results:
       var showAllText = document.createTextNode("Showing " + settings.maxResultsToShow + " results of " + (settings.maxResultsToShow + elems.hidden.length));
 
@@ -186,12 +207,12 @@ var ui = {
 
       //Show all button:
       var showAllButton = document.createElement('button');
-      showAllButton.setAttribute('class','btn');
+      showAllButton.setAttribute('class', 'btn');
       var showAllButtonText = document.createTextNode('Show all');
       showAllButton.appendChild(showAllButtonText);
 
       //show all button behaviour
-      showAllButton.addEventListener('click', function(){
+      showAllButton.addEventListener('click', function() {
         ui.showAllResults();
       });
 
@@ -204,11 +225,13 @@ var ui = {
    * [function description]
    * @return {[type]} [description]
    */
-  showAllResults : function(){
+  showAllResults: function() {
     //remove the show all button.
     try {
       document.getElementById('showAll').innerHTML = "";
-    } catch(e) {console.error(e);}
+    } catch (e) {
+      console.error(e);
+    }
 
     for (var i = 0; i < elems.hidden.length; i++) {
       elems.parentElement.appendChild(elems.hidden[i]);
@@ -219,13 +242,13 @@ var ui = {
    * Helper for cleanseResults. Check how many results we can see
    * if it's less than settings.maxresultstoshow, add some more
    */
-  replenishResultCount: function(){
-    if((ui.getNumResults() < settings.maxResultsToShow) && (elems.hidden.length > 0)) {
+  replenishResultCount: function() {
+    if ((ui.getNumResults() < settings.maxResultsToShow) && (elems.hidden.length > 0)) {
       var newElem;
       //if you remove elements from an array you're iterating over, counting
       //backwards prevents the array index from messing up.
-      for(var i = settings.maxResultsToShow; i >0; i--) {
-        if(elems.hidden.length > 0) {
+      for (var i = settings.maxResultsToShow; i > 0; i--) {
+        if (elems.hidden.length > 0) {
           try {
             newElem = elems.hidden.pop();
             elems.parentElement.appendChild(newElem);
@@ -236,27 +259,27 @@ var ui = {
       }
     }
   },
-  getNumResults : function (){
+  getNumResults: function() {
     return elems.parentElement.querySelectorAll('.proteinViewer').length;
   },
-  removeIfEmpty : function(elem){
+  removeIfEmpty: function(elem) {
     var elem, suspect, suspectName;
     suspect = elem.querySelector('div');
     //remove it if there are no features for this 'protein'
     if (ui.isEmpty(suspect.innerHTML)) {
-      if(elem.parentNode) {
+      if (elem.parentNode) {
         //remove it if it's attached to the dom
         elems.parentElement.removeChild(elem);
       } else {
         //it must be a hidden elem. Remove it from the main hidden array
-        elems.hidden.splice(elems.hidden.indexOf(elem),1);
+        elems.hidden.splice(elems.hidden.indexOf(elem), 1);
       }
       //save the bad ones for later so we can tell the user.
       suspectName = suspect.getAttribute('id').split('proteinViewer-')[1];
       badAccessionList.push(suspectName);
     }
   },
-  isEmpty : function(htmlToCheck){
+  isEmpty: function(htmlToCheck) {
     var isEmpty = false;
     //does the div display a 'no features' message?
     isEmpty = (htmlToCheck.indexOf(settings.viewer.noFeatures) === 0);
@@ -276,7 +299,59 @@ var ui = {
     notShown.innerHTML = "";
     notShown.setAttribute('class', 'well');
     notShown.appendChild(notShownText);
+  },
+
+  /**
+   * Ideally we'd only like to see one data input item. But if we get many,
+   * we can prompt the user to choose the right one.
+   */
+
+  chooseItem: function() {
+    if (data.ids.length > 1) {
+      //hide parent
+      elems.parentElement.setAttribute('display','none');
+
+      //prompt the user to select data
+      var identifierQuery = selectAnItemQuery[data.type];
+      identifierQuery.where[0].values = data.ids;
+
+      //load the names of the genes, because who understands identifiers anyway?
+      service.records(identifierQuery).then(function(identifiers) {
+        var item, itemName,
+        chooserText = "<h3>Which " + data.type + " would you like to see protein features for?</h3> <div>";
+        for (var i = 0; i < identifiers.length; i++) {
+          item = identifiers[i];
+          itemName = item.primaryAccession || item.symbol || item.primaryIdentifier;
+          chooserText += "<span class='label label-default' id='item-" + item.objectId +"'>" + itemName + "</span>";
+        }
+
+        elems.chooserElement.innerHTML = chooserText + "</div>";
+
+        elems.chooserElement.addEventListener('click', function(e){
+          if(e.target.id.indexOf('item-') === 0) {
+            //init graph using the chosen gene/protein's id
+            init(e.target.id.split('item-')[1]);
+            elems.parentElement.setAttribute('display','block');
+
+            //dehighlight others if present
+            var active = elems.chooserElement.querySelector('.label-success');
+            if(active) {
+              active.setAttribute('class','label label-default');
+            }
+            //highlight the active one
+            e.target.setAttribute('class', 'label label-success');
+          }
+        });
+      });
+
+      //return dataList[0];
+    } else if (data.id || data.ids.length === 1) {
+      elems.chooserElement.remove();
+      //there's only one item. Cool. init the graph with it.
+      init( data.id || data.ids[0]);
+    }
   }
+
 };
 
 
@@ -292,16 +367,13 @@ var ui = {
  */
 chan.bind('init', function(trans, params) {
 
-  console.log("%c2","color:seagreen;font-weight:bold;",params);
-
   service = new imjs.Service({
     root: params.service.root
   });
   data = params;
-  init(data.id, data.type);
 
-  console.log("%c3","color:seagreen;font-weight:bold;",3);
-
+  //once an item is chosen, init() is kicked off
+  ui.chooseItem();
 
   function hasItem(id, type) {
     // Notify as generic and specific item.
@@ -354,17 +426,19 @@ chan.bind('init', function(trans, params) {
  * @param  {string or int} id   an intermine/steps object id
  * @param  {string} type        "Gene" or "Protein" only.
  */
-function init() {
-  debugger;
+function init(mainItem) {
   var accessions, type = data.type;
+
   //build query
-  primaryAccessionQuery[type].where[0].value = data.ids[0];
+  primaryAccessionQuery[type].where[0].value = mainItem;
+
+  //get the data
   try {
     service.records(primaryAccessionQuery[type]).then(function(results) {
       if (results.length > 0) {
-        //store the symbol
+        //store the identifier
         if (type === "Gene") {
-          data.symbol = results[0].symbol;
+          data.identifier = results[0].symbol;
         }
         accessions = getAccessions(results[0]);
         if (accessions.length > 0) {

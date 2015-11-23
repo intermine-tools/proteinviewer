@@ -10,6 +10,7 @@
   "license": "LGPL-3.0",
   "dependencies": {
     "biojs-vis-proteinfeaturesviewer": "0.0.5",
+    "es6-promise": "^3.0.2",
     "jschannel": "^1.0.0"
   },
   "devDependencies": {
