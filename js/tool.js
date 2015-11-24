@@ -1,8 +1,7 @@
 //dependencies
 var imjs = require('./../node_modules/imjs/dist/im.js'),
   proteinFeaturesViewer = require('biojs-vis-proteinfeaturesviewer'),
-  Channel = require('./../node_modules/jschannel/src/jschannel'),
-  Promise = require('./../node_modules/es6-promise/dist/es6-promise').Promise;
+  Channel = require('./jschannel');
 
 require("!style!css!./../node_modules/biojs-vis-proteinfeaturesviewer/build/main.css");
 
@@ -309,7 +308,7 @@ var ui = {
   chooseItem: function() {
     if (data.ids.length > 1) {
       //hide parent
-      elems.parentElement.setAttribute('style','display:none');
+      elems.parentElement.setAttribute('style', 'display:none');
 
       //prompt the user to select data
       var identifierQuery = selectAnItemQuery[data.type];
@@ -318,28 +317,34 @@ var ui = {
       //load the names of the genes, because who understands identifiers anyway?
       service.records(identifierQuery).then(function(identifiers) {
         var item, itemName,
-        chooserText = "<h3>Which " + data.type + " would you like to see protein features for?</h3> <div>";
+          chooserText = "<h3>Which " + data.type + " would you like to see protein features for?</h3> <div>";
         for (var i = 0; i < identifiers.length; i++) {
           item = identifiers[i];
           itemName = item.primaryAccession || item.symbol || item.primaryIdentifier;
-          chooserText += "<span class='label label-default' id='item-" + item.objectId +"'>" + itemName + "</span>";
+          chooserText += "<span class='label label-default' id='item-" + item.objectId + "'>" + itemName + "</span>";
         }
 
         elems.chooserElement.innerHTML = chooserText + "</div>";
 
-        elems.chooserElement.addEventListener('click', function(e){
-          if(e.target.id.indexOf('item-') === 0) {
+        elems.chooserElement.addEventListener('click', function(e) {
+          if (e.target.id.indexOf('item-') === 0) {
+            var theItem = e.target.id.split('item-')[1];
+
             //init graph using the chosen gene/protein's id
             init(e.target.id.split('item-')[1]);
-            elems.parentElement.setAttribute('style','display:block');
+
+            elems.parentElement.setAttribute('style', 'display:block');
 
             //dehighlight others if present
             var active = elems.chooserElement.querySelector('.label-success');
-            if(active) {
-              active.setAttribute('class','label label-default');
+            if (active) {
+              active.setAttribute('class', 'label label-default');
             }
             //highlight the active one
             e.target.setAttribute('class', 'label label-success');
+
+            //notify we have an item
+            reportItems(service, data.type, data.type, data.ids, ['selected']);
           }
         });
       });
@@ -348,7 +353,7 @@ var ui = {
     } else if (data.id || data.ids.length === 1) {
       elems.chooserElement.remove();
       //there's only one item. Cool. init the graph with it.
-      init( data.id || data.ids[0]);
+      init(data.id || data.ids[0]);
     }
   }
 
@@ -366,59 +371,50 @@ var ui = {
  * @return {[type]}          [description]
  */
 chan.bind('init', function(trans, params) {
-
-  service = new imjs.Service({
-    root: params.service.root
-  });
-  data = params;
-
-  //once an item is chosen, init() is kicked off
-  ui.chooseItem();
-
-  function hasItem(id, type) {
-    // Notify as generic and specific item.
-    chan.notify({
-      method: 'has',
-      params: {
-        what: 'item',
-        data: {
-          id: id,
-          type: type,
-          service: {
-            root: service.root
-          }
-        }
-      }
+  try {
+    service = new imjs.Service({
+      root: params.service.root
     });
-    chan.notify({
-      method: 'has',
-      params: {
-        what: type,
-        data: {
-          id: id,
-          service: {
-            root: service.root
-          }
-        }
-      }
-    });
+    data = params;
+
+    reportItems(service, data.type, data.type, data.ids, ['available']);
+
+    //once an item is chosen, init() is kicked off
+    ui.chooseItem();;
+    trans.complete('ok');
+
+  } catch (e) {
+    trans.error('InitialisationError', e);
   }
-
-  function hasQuery(query) {
-    chan.notify({
-      method: 'has',
-      params: {
-        what: 'query',
-        data: {
-          query: query,
-          service: {
-            root: service.root
-          }
-        }
-      }
-    });
-  }
+  trans.delayReturn(true);
 });
+
+function hasIds(id, type, categories) {
+  var categories = categories || ['selected'],
+    message = {
+      method: 'has',
+      params: {
+        what: 'ids',
+        data: {
+          ids: [id],
+          key: (categories.join(',') + '-' + type),
+          type: type,
+          categories: categories,
+          service: {
+            root: service.root
+          }
+        },
+      }
+    };
+
+  try {
+    chan.notify(message);
+  } catch (e) {
+    console.error(e);
+  }
+
+}
+
 
 /**
  * Steps likes to share IDs, but the protein viewer likes primary accessions.
@@ -457,7 +453,6 @@ function init(mainItem) {
     });
   } catch (e) {
     console.error(e);
-    trans.error('InitialisationError', String(e));
   }
 }
 
@@ -481,4 +476,26 @@ function getAccessions(results) {
     }
   }
   return primaryAccessions;
+}
+
+
+function reportItems(service, path, type, ids, categories) {
+  if (!categories) {
+    categories = ['selected'];
+  }
+  chan.notify({
+    method: 'has',
+    params: {
+      what: 'ids',
+      data: {
+        key: (categories.join(',') + '-' + path), // String - any identifier.
+        type: type, // String - eg: "Protein"
+        categories: categories, // Array[string] - eg: ['selected']
+        ids: ids, // Array[Int] - eg: [123, 456, 789]
+        service: {
+          root: service.root
+        }
+      }
+    }
+  });
 }
