@@ -353,8 +353,6 @@
 
 	  chooseItem: function() {
 	    if (data.ids.length > 1) {
-	      //hide parent
-	      elems.parentElement.setAttribute('style', 'display:none');
 
 	      //prompt the user to select data
 	      var identifierQuery = selectAnItemQuery[data.type];
@@ -379,8 +377,6 @@
 	            //init graph using the chosen gene/protein's id
 	            init(e.target.id.split('item-')[1]);
 
-	            elems.parentElement.setAttribute('style', 'display:block');
-
 	            //dehighlight others if present
 	            var active = elems.chooserElement.querySelector('.label-success');
 	            if (active) {
@@ -389,10 +385,14 @@
 	            //highlight the active one
 	            e.target.setAttribute('class', 'label label-success');
 
-	            //notify we have an item
+	            //notify we have an item selected
 	            reportItems(service, data.type, data.type, data.ids, ['selected']);
 	          }
 	        });
+
+	        //initialise to the first element, whatever it is.
+	        elems.chooserElement.querySelector('span').click();
+
 	      });
 
 	      //return dataList[0];
