@@ -49,7 +49,7 @@
 	  proteinFeaturesViewer = __webpack_require__(8),
 	  Channel = __webpack_require__(24);
 
-	__webpack_require__(29);
+	__webpack_require__(25);
 
 	//the app
 	var service,
@@ -39230,20 +39230,16 @@
 
 
 /***/ },
-/* 25 */,
-/* 26 */,
-/* 27 */,
-/* 28 */,
-/* 29 */
+/* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// style-loader: Adds some css to the DOM by adding a <style> tag
 
 	// load the styles
-	var content = __webpack_require__(30);
+	var content = __webpack_require__(26);
 	if(typeof content === 'string') content = [[module.id, content, '']];
 	// add the styles to the DOM
-	var update = __webpack_require__(32)(content, {});
+	var update = __webpack_require__(28)(content, {});
 	if(content.locals) module.exports = content.locals;
 	// Hot Module Replacement
 	if(false) {
@@ -39260,10 +39256,10 @@
 	}
 
 /***/ },
-/* 30 */
+/* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
-	exports = module.exports = __webpack_require__(31)();
+	exports = module.exports = __webpack_require__(27)();
 	// imports
 
 
@@ -39274,7 +39270,7 @@
 
 
 /***/ },
-/* 31 */
+/* 27 */
 /***/ function(module, exports) {
 
 	/*
@@ -39330,7 +39326,7 @@
 
 
 /***/ },
-/* 32 */
+/* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/*
