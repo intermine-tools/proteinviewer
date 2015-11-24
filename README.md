@@ -6,6 +6,6 @@ It's designed to be included in [Steps](https://github.com/intermine/staircase) 
 
 #Packaging
 
-To build the project, assuming you have npm and node, `npm install` the dependencies, then run ` webpack --display-error-details --watch ` for nice verbose errors and automatic re-compiling when you modify files, or ` webpack -p` for a minified production build.
+To build the project, assuming you have npm and node, `npm install` the dependencies, then run `webpack --display-error-details --watch` for nice verbose errors and automatic re-compiling when you modify files, or `webpack -p` for a minified production build.
 
 Your entry point if modifying this is `js/tool.js`, and the output file is `js/steps-protein-viewer.js`.
