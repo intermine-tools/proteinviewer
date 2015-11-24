@@ -86,7 +86,7 @@ chan.bind('style', function(trans, params) {
   link.href = params.stylesheet;
 
   head.appendChild(link);
-
+  return 'ok';
 });
 
 chan.bind('configure', function(trans, params) {
@@ -154,7 +154,7 @@ var ui = {
     return viewer;
   },
   /**
-   * LEt's let the user know there are not results. sigh.
+   * LEt's let the user know there are no results. sigh.
    */
   noResults: function() {
     elems.parentElement.innerHTML = settings.noProteins + data.type;
@@ -302,59 +302,71 @@ var ui = {
 
   /**
    * Ideally we'd only like to see one data input item. But if we get many,
-   * we can prompt the user to choose the right one.
+   * we can prompt the user to choose the right one, if needed.
    */
-
   chooseItem: function() {
-    if (data.ids.length > 1) {
+    try {
+      if (data.what === 'list') {
+        service.fetchList(data.name).then(function(listResponse){
+          listResponse.contents().then(function(contents){
+            ui.makeItemChooser(contents);
+          });
+        });
+      } else if (data.ids && data.ids.length > 1) {
+        //prompt the user to select data
+        var identifierQuery = selectAnItemQuery[data.type];
+        identifierQuery.where[0].values = data.ids;
 
-      //prompt the user to select data
-      var identifierQuery = selectAnItemQuery[data.type];
-      identifierQuery.where[0].values = data.ids;
-
-      //load the names of the genes, because who understands identifiers anyway?
-      service.records(identifierQuery).then(function(identifiers) {
-        var item, itemName,
-          chooserText = "<h3>Which " + data.type + " would you like to see protein features for?</h3> <div>";
-        for (var i = 0; i < identifiers.length; i++) {
-          item = identifiers[i];
-          itemName = item.primaryAccession || item.symbol || item.primaryIdentifier;
-          chooserText += "<span class='label label-default' id='item-" + item.objectId + "'>" + itemName + "</span>";
-        }
-
-        elems.chooserElement.innerHTML = chooserText + "</div>";
-
-        elems.chooserElement.addEventListener('click', function(e) {
-          if (e.target.id.indexOf('item-') === 0) {
-            var theItem = e.target.id.split('item-')[1];
-
-            //init graph using the chosen gene/protein's id
-            init(e.target.id.split('item-')[1]);
-
-            //dehighlight others if present
-            var active = elems.chooserElement.querySelector('.label-success');
-            if (active) {
-              active.setAttribute('class', 'label label-default');
-            }
-            //highlight the active one
-            e.target.setAttribute('class', 'label label-success');
-
-            //notify we have an item selected
-            reportItems(service, data.type, data.type, data.ids, ['selected']);
-          }
+        //load the names of the genes, because who understands identifiers anyway?
+        service.records(identifierQuery).then(function(identifiers) {
+          ui.makeItemChooser(identifiers);
         });
 
-        //initialise to the first element, whatever it is.
-        elems.chooserElement.querySelector('span').click();
-
-      });
-
-      //return dataList[0];
-    } else if (data.id || data.ids.length === 1) {
-      elems.chooserElement.remove();
-      //there's only one item. Cool. init the graph with it.
-      init(data.id || data.ids[0]);
+        //return dataList[0];
+      } else if (data.id || data.ids.length === 1) {
+        elems.chooserElement.remove();
+        //there's only one item. Cool. init the graph with it.
+        init(data.id || data.ids[0]);
+      }
+    } catch(e) {console.error(e);}
+  },
+  /**
+   * Makes the item chooser UI. and defaults to the first result in the array
+   * @param  {array} identifiers array of results from which to choose. Must be intermine results with a (symbol, primaryaccession, or primaryIdentifier) and an objectid.
+   */
+  makeItemChooser : function(identifiers){
+    var item, itemName,
+      chooserText = "<h3>Which " + data.type + " would you like to see protein features for?</h3> <div>";
+    for (var i = 0; i < identifiers.length; i++) {
+      item = identifiers[i];
+      itemName = item.primaryAccession || item.symbol || item.primaryIdentifier;
+      chooserText += "<span class='label label-default' id='item-" + item.objectId + "'>" + itemName + "</span>";
     }
+
+    elems.chooserElement.innerHTML = chooserText + "</div>";
+
+    elems.chooserElement.addEventListener('click', function(e) {
+      if (e.target.id.indexOf('item-') === 0) {
+        var theItem = e.target.id.split('item-')[1];
+
+        //init graph using the chosen gene/protein's id
+        init(e.target.id.split('item-')[1]);
+
+        //dehighlight others if present
+        var active = elems.chooserElement.querySelector('.label-success');
+        if (active) {
+          active.setAttribute('class', 'label label-default');
+        }
+        //highlight the active one
+        e.target.setAttribute('class', 'label label-success');
+
+        //notify we have an item selected
+        reportItems(service, data.type, data.type, data.ids || data.name, ['selected']);
+      } 
+    });
+
+    //initialise to the first element, whatever it is.
+    elems.chooserElement.querySelector('span').click();
   }
 
 };
@@ -371,49 +383,24 @@ var ui = {
  * @return {[type]}          [description]
  */
 chan.bind('init', function(trans, params) {
+  console.log("%cdata","background:honeydew;color:hotpink;font-weight:bold;",params);
   try {
     service = new imjs.Service({
-      root: params.service.root
+      root: params.root || params.service.root
     });
     data = params;
 
-    reportItems(service, data.type, data.type, data.ids, ['available']);
-
     //once an item is chosen, init() is kicked off
-    ui.chooseItem();;
-    trans.complete('ok');
+    ui.chooseItem();
 
+    //reportItems(service, data.type, data.type, data.ids, ['available']);
+
+    trans.complete('ok');
   } catch (e) {
     trans.error('InitialisationError', e);
   }
   trans.delayReturn(true);
 });
-
-function hasIds(id, type, categories) {
-  var categories = categories || ['selected'],
-    message = {
-      method: 'has',
-      params: {
-        what: 'ids',
-        data: {
-          ids: [id],
-          key: (categories.join(',') + '-' + type),
-          type: type,
-          categories: categories,
-          service: {
-            root: service.root
-          }
-        },
-      }
-    };
-
-  try {
-    chan.notify(message);
-  } catch (e) {
-    console.error(e);
-  }
-
-}
 
 
 /**
@@ -478,15 +465,17 @@ function getAccessions(results) {
   return primaryAccessions;
 }
 
-
-function reportItems(service, path, type, ids, categories) {
+function reportItems(service, path, type, ids, categories, what) {
   if (!categories) {
     categories = ['selected'];
+  }
+  if (!what) {
+    what = 'ids';
   }
   chan.notify({
     method: 'has',
     params: {
-      what: 'ids',
+      what: what,
       data: {
         key: (categories.join(',') + '-' + path), // String - any identifier.
         type: type, // String - eg: "Protein"
