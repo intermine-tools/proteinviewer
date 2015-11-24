@@ -361,8 +361,9 @@ var ui = {
         e.target.setAttribute('class', 'label label-success');
 
         //notify we have an item selected
-        reportItems(service, data.type, data.type, data.ids || data.name, ['selected']);
-      } 
+        reportItems(service, data.type, data.type, data.ids || data.name, ['selected'], data.what);
+      }
+
     });
 
     //initialise to the first element, whatever it is.
@@ -472,19 +473,27 @@ function reportItems(service, path, type, ids, categories, what) {
   if (!what) {
     what = 'ids';
   }
+
+  var data = {
+    key: (categories.join(',') + '-' + path),
+    type: type,
+    what: what,
+    service: {
+      root: service.root
+    }
+  }
+
+  if (what == "list") {
+    data.name = ids;
+  } else {
+    data.ids = ids;
+  }
+
   chan.notify({
     method: 'has',
     params: {
       what: what,
-      data: {
-        key: (categories.join(',') + '-' + path), // String - any identifier.
-        type: type, // String - eg: "Protein"
-        categories: categories, // Array[string] - eg: ['selected']
-        ids: ids, // Array[Int] - eg: [123, 456, 789]
-        service: {
-          root: service.root
-        }
-      }
+      data: data
     }
   });
 }
